@@ -1,0 +1,13 @@
+**/.git
+**/.gitignore
+**/.vscode
+**/.vs
+**/bin
+**/obj
+**/.dockerignore
+**/Dockerfile*
+**/docker-compose*
+**/README.md
+**/*.md
+**/.env
+**/k8s-*.yaml
