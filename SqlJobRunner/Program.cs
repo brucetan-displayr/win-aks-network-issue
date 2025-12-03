@@ -174,7 +174,7 @@ async Task RunRunnerMode()
             using var connection = new SqlConnection(connectionString);
             await connection.OpenAsync();
             
-            using var command = new SqlCommand("SELECT GETDATE()", connection);
+            using var command = new SqlCommand("SELECT COUNT(1) FROM [SalesLT].[Customer]", connection);
             var result = await command.ExecuteScalarAsync();
             
             queryCount++;
