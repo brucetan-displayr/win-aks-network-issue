@@ -5,8 +5,9 @@ metadata:
   namespace: default
 data:
   # Update these values according to your environment
-  IMAGE_NAME: "your-registry/sql-job-runner:latest"
+  IMAGE_NAME: "your-registry.azurecr.io/sql-job-runner:latest"
   NAMESPACE: "default"
+  SECRET_NAME: "sql-connection-secret"
 ---
 apiVersion: v1
 kind: Secret
@@ -73,7 +74,8 @@ spec:
         kubernetes.io/os: windows
       containers:
       - name: orchestrator
-        image: your-registry/sql-job-runner:latest
+        # Use the same image as specified in ConfigMap
+        image: your-registry.azurecr.io/sql-job-runner:latest
         env:
         - name: MODE
           value: "orchestrator"
@@ -92,6 +94,11 @@ spec:
             configMapKeyRef:
               name: sql-job-config
               key: NAMESPACE
+        - name: SECRET_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: sql-job-config
+              key: SECRET_NAME
         resources:
           requests:
             memory: "128Mi"

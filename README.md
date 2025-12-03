@@ -29,7 +29,7 @@ This application operates in two modes:
 │   (MODE=runner)                │
 │                                 │
 │   - Run for 60 seconds         │
-│   - Execute SQL queries/sec    │
+│   - Execute 1 SQL query/sec    │
 │   - Auto-cleanup after 5min    │
 └────────────────────────────────┘
 ```
@@ -52,6 +52,7 @@ The application uses environment variables for configuration:
 | `CONN_STR` | Both | Yes | SQL Server connection string |
 | `IMAGE_NAME` | Orchestrator | Yes | Full container image name with tag |
 | `NAMESPACE` | Orchestrator | No | Kubernetes namespace (default: `default`) |
+| `SECRET_NAME` | Orchestrator | No | Name of K8s secret containing CONN_STR (default: `sql-connection-secret`) |
 
 ## Building the Application
 

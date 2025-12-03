@@ -27,6 +27,7 @@ async Task RunOrchestratorMode()
     var config = KubernetesClientConfiguration.InClusterConfig();
     var client = new Kubernetes(config);
     
+    // Validate that CONN_STR exists (even though we'll reference it as a secret in jobs)
     var connectionString = Environment.GetEnvironmentVariable("CONN_STR");
     if (string.IsNullOrEmpty(connectionString))
     {
@@ -42,6 +43,7 @@ async Task RunOrchestratorMode()
     }
 
     var namespaceParam = Environment.GetEnvironmentVariable("NAMESPACE") ?? "default";
+    var secretName = Environment.GetEnvironmentVariable("SECRET_NAME") ?? "sql-connection-secret";
 
     while (true)
     {
@@ -96,7 +98,19 @@ async Task RunOrchestratorMode()
                                         Env = new List<V1EnvVar>
                                         {
                                             new V1EnvVar { Name = "MODE", Value = "runner" },
-                                            new V1EnvVar { Name = "CONN_STR", Value = connectionString }
+                                            // Reference the secret instead of passing value directly for security
+                                            new V1EnvVar 
+                                            { 
+                                                Name = "CONN_STR",
+                                                ValueFrom = new V1EnvVarSource
+                                                {
+                                                    SecretKeyRef = new V1SecretKeySelector
+                                                    {
+                                                        Name = secretName,
+                                                        Key = "CONN_STR"
+                                                    }
+                                                }
+                                            }
                                         }
                                     }
                                 }
