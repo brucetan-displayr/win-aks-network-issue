@@ -1,8 +1,8 @@
 # win-aks-network-issue
 
-A C# .NET 8 application designed to run on Windows containers in Azure Kubernetes Service (AKS). 
+We discovered there are intermittent network failures affecting SQL Connection that affect roughly 1.6% of the network requests. This issue is genuine and has significant business impact on the customer workload as it slows down the application network performance, increase SQL latencies in the event of retries and significantly impact our testing/workload. 
 
-This solution helps test SQL Server connectivity and network performance in Windows-based Kubernetes environments.
+The code in this repository reproduce this issues on windows aks. We also cross verified in linux aks and unable to reproduce it. 
 
 ## Overview
 
@@ -19,7 +19,7 @@ This application operates in two modes:
 │   (MODE=orchestrator)           │
 │                                 │
 │   - Runs continuously           │
-│   - Creates 50 jobs every x sec 
+│   - Creates 50 jobs every x sec |
 │   - Uses Kubernetes API         │
 └────────────┬────────────────────┘
              │
@@ -36,34 +36,44 @@ This application operates in two modes:
 └────────────────────────────────┘
 ```
 
-## Deploying to AKS
+## Reproduce Network issues on windows AKS
 
 ### 1. Update Configuration
 
-Edit `k8s-deployment.yaml` and update:
-- Container image name in ConfigMap
+Edit `k8s-deployment-windows.yaml` and update:
 - SQL connection string in Secret
-- Container image reference in Deployment
+```
+# Replace with your actual SQL Server connection string
+  CONN_STR: "Server=your-server.database.windows.net;Database=your-database;User Id=your-user;Password=your-password;Encrypt=true;TrustServerCertificate=false;"
+```
 
 ### 2. Apply Kubernetes Manifests
 
 ```bash
-kubectl apply -f k8s-deployment.yaml
+kubectl apply -f k8s-deployment-windows.yaml
 ```
 
-### 3. Verify Deployment
+### 3. Monitor Logs after 1 min
+
+After 1 min once all the sql-runner jobs are completed, we can observe that network error generally start to appear 
 
 ```bash
-# Check orchestrator pod
-kubectl get pods -l app=sql-job-orchestrator
-
-# Check created jobs
-kubectl get jobs -l app=sql-runner
+kubectl logs -l app=sql-runner | grep -i error 
+ERROR executing query: A transport-level error has occurred when receiving results from the server. (provider: TCP Provider, error: 0 - A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond.)
+ERROR executing query: A transport-level error has occurred when receiving results from the server. (provider: TCP Provider, error: 0 - A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond.)
+ERROR executing query: A connection was successfully established with the server, but then an error occurred during the login process. (provider: SSL Provider, error: 0 - An existing connection was forcibly closed by the remote host.)
 ```
 
-### 4. Monitor Jobs
+## This Network issues can't be reproduced on linux aks
+
+Our aks setup is a hybrid of windows and linux nodes, if we update the deployment to target linux nodes, this issues disappear. 
 
 ```bash
-# List all jobs created by orchestrator
-kubectl get jobs -l app=sql-runner
+kubectl apply -f k8s-deployment-linux.yaml
+```
+
+Running the below command returns no errors
+
+```
+kubectl logs -l app=sql-runner | grep -i error
 ```
