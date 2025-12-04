@@ -1,0 +1,48 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: sql-connection-secret-test
+  namespace: default
+type: Opaque
+stringData:
+  # Replace with your actual SQL Server connection string
+  CONN_STR: "Server=your-server.database.windows.net;Database=your-database;User Id=your-user;Password=your-password;Encrypt=true;TrustServerCertificate=false;"
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: sql-runner-test
+  namespace: default
+  labels:
+    app: sql-runner
+    test: manual
+spec:
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 300
+  template:
+    metadata:
+      labels:
+        app: sql-runner
+        test: manual
+    spec:
+      restartPolicy: Never
+      nodeSelector:
+        kubernetes.io/os: windows
+      containers:
+      - name: sql-runner
+        image: your-registry.azurecr.io/sql-job-runner:latest
+        env:
+        - name: MODE
+          value: "runner"
+        - name: CONN_STR
+          valueFrom:
+            secretKeyRef:
+              name: sql-connection-secret-test
+              key: CONN_STR
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "500m"
