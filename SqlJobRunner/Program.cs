@@ -46,11 +46,18 @@ async Task RunOrchestratorMode()
     var secretName = Environment.GetEnvironmentVariable("SECRET_NAME") ?? "sql-connection-secret";
 
     // Get number of jobs from env var, default to 50
-    var jobsEnv = Environment.GetEnvironmentVariable("NUM_JOBS");
+    var jobsEnv = Environment.GetEnvironmentVariable("ORCHESTRATOR_NUM_JOBS");
     int numJobs = 50;
     if (!string.IsNullOrEmpty(jobsEnv) && int.TryParse(jobsEnv, out var parsedJobs) && parsedJobs > 0)
     {
         numJobs = parsedJobs;
+    }
+
+    var batchWaitSecondsEnv = Environment.GetEnvironmentVariable("ORCHESTRATOR_BATCH_WAIT_SECONDS");
+    int batchWaitSeconds = 60;
+    if (!string.IsNullOrEmpty(batchWaitSecondsEnv) && int.TryParse(batchWaitSecondsEnv, out var parsedBatchWaitSeconds) && parsedBatchWaitSeconds > 0)
+    {
+        batchWaitSeconds = parsedBatchWaitSeconds;
     }
 
     while (true)
@@ -97,6 +104,13 @@ async Task RunOrchestratorMode()
                             Spec = new V1PodSpec
                             {
                                 RestartPolicy = "Never",
+                                // Dynamically set node selector based on current OS
+                                NodeSelector = new Dictionary<string, string>
+                                {
+                                    { "kubernetes.io/os",
+                                        Environment.OSVersion.Platform == PlatformID.Win32NT ? "windows" : "linux"
+                                    }
+                                },
                                 Containers = new List<V1Container>
                                 {
                                     new V1Container
@@ -106,6 +120,9 @@ async Task RunOrchestratorMode()
                                         Env = new List<V1EnvVar>
                                         {
                                             new V1EnvVar { Name = "MODE", Value = "runner" },
+                                            new V1EnvVar { Name = "RUNNER_DURATION_MINS", Value= Environment.GetEnvironmentVariable("RUNNER_DURATION_MINS") ?? "" },
+                                            new V1EnvVar { Name = "RUNNER_SQL_WAIT_SECONDS", Value= Environment.GetEnvironmentVariable("RUNNER_SQL_WAIT_SECONDS") ?? "" },
+
                                             // Reference the secret instead of passing value directly for security
                                             new V1EnvVar 
                                             { 
@@ -140,8 +157,8 @@ async Task RunOrchestratorMode()
         }
 
         // Wait 1 minute before creating next batch
-        Console.WriteLine("Waiting 60 seconds before creating next batch...");
-        await Task.Delay(TimeSpan.FromMinutes(1));
+        Console.WriteLine($"Waiting {batchWaitSeconds} seconds before creating next batch...");
+        await Task.Delay(TimeSpan.FromSeconds(batchWaitSeconds));
     }
 }
 
@@ -170,11 +187,18 @@ async Task RunRunnerMode()
     }
 
     // Get runner duration from env var, default to 1 minute
-    var durationEnv = Environment.GetEnvironmentVariable("RUNNER_MINUTES");
+    var durationEnv = Environment.GetEnvironmentVariable("RUNNER_DURATION_MINS");
     int runnerMinutes = 1;
     if (!string.IsNullOrEmpty(durationEnv) && int.TryParse(durationEnv, out var parsedMinutes) && parsedMinutes > 0)
     {
         runnerMinutes = parsedMinutes;
+    }
+
+    var runnerSqlWaitEnv = Environment.GetEnvironmentVariable("RUNNER_SQL_WAIT_SECONDS");
+    int sqlWaitSeconds = 1;
+    if (!string.IsNullOrEmpty(runnerSqlWaitEnv) && int.TryParse(runnerSqlWaitEnv, out var parsedSqlWaitSeconds) && parsedSqlWaitSeconds > 0)
+    {
+        sqlWaitSeconds = parsedSqlWaitSeconds;
     }
 
     var startTime = DateTime.UtcNow;
@@ -202,7 +226,7 @@ async Task RunRunnerMode()
         }
 
         // Wait 1 second before next query
-        await Task.Delay(TimeSpan.FromSeconds(1));
+        await Task.Delay(TimeSpan.FromSeconds(sqlWaitSeconds));
     }
 
     Console.WriteLine($"Runner completed. Executed {queryCount} queries in {runnerMinutes} minute(s).");

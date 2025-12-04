@@ -5,11 +5,13 @@ metadata:
   namespace: default
 data:
   # Update these values according to your environment
-  IMAGE_NAME: "brucetandisplayr/sql-job-runner:latest"
+  IMAGE_NAME: "brucetandisplayr/sql-job-runner:v2"
   NAMESPACE: "default"
   SECRET_NAME: "sql-connection-secret"
-  NUM_JOBS: 50
-  RUNNER_MINUTES: 1
+  ORCHESTRATOR_NUM_JOBS: "50"
+  ORCHESTRATOR_BATCH_WAIT_SECONDS: "20"
+  RUNNER_DURATION_MINS: "1"
+  RUNNER_SQL_WAIT_SECONDS: "10"
 ---
 apiVersion: v1
 kind: Secret
@@ -77,7 +79,7 @@ spec:
       containers:
       - name: orchestrator
         # Use the same image as specified in ConfigMap
-        image: brucetandisplayr/sql-job-runner:latest
+        image: brucetandisplayr/sql-job-runner:v2
         env:
         - name: MODE
           value: "orchestrator"
@@ -101,16 +103,26 @@ spec:
             configMapKeyRef:
               name: sql-job-config
               key: SECRET_NAME
-        - name: NUM_JOBS
+        - name: ORCHESTRATOR_NUM_JOBS
           valueFrom:
             configMapKeyRef:
               name: sql-job-config
-              key: NUM_JOBS
-        - name: RUNNER_MINUTES
+              key: ORCHESTRATOR_NUM_JOBS
+        - name: ORCHESTRATOR_BATCH_WAIT_SECONDS
           valueFrom:
             configMapKeyRef:
               name: sql-job-config
-              key: RUNNER_MINUTES
+              key: ORCHESTRATOR_BATCH_WAIT_SECONDS
+        - name: RUNNER_DURATION_MINS
+          valueFrom:
+            configMapKeyRef:
+              name: sql-job-config
+              key: RUNNER_DURATION_MINS
+        - name: RUNNER_SQL_WAIT_SECONDS
+          valueFrom:
+            configMapKeyRef:
+              name: sql-job-config
+              key: RUNNER_SQL_WAIT_SECONDS
         resources:
           requests:
             memory: "128Mi"
