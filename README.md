@@ -17,9 +17,9 @@ This application operates in two modes:
 ┌─────────────────────────────────┐
 │   Orchestrator Pod              │
 │   (MODE=orchestrator)           │
-│                                  │
+│                                 │
 │   - Runs continuously           │
-│   - Creates 50 jobs/minute      │
+│   - Creates 50 jobs every x sec 
 │   - Uses Kubernetes API         │
 └────────────┬────────────────────┘
              │
@@ -29,9 +29,9 @@ This application operates in two modes:
 ┌────────────────────────────────┐
 │   Runner Jobs (x50)            │
 │   (MODE=runner)                │
-│                                 │
+│                                │
 │   - Run for 60 seconds         │
-│   - Execute 1 SQL query/sec    │
+│   - Execute 1 SQL query/ 10 sec│
 │   - Auto-cleanup after 5min    │
 └────────────────────────────────┘
 ```

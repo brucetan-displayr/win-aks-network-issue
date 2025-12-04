@@ -64,6 +64,16 @@ async Task RunOrchestratorMode()
     {
         try
         {
+
+            try
+            {
+                var secret = await client.ReadNamespacedSecretAsync(secretName, namespaceParam);
+            }
+            catch (k8s.Autorest.HttpOperationException ex) when (ex.Response.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                throw new Exception($"ERROR: Kubernetes secret '{secretName}' not found in namespace '{namespaceParam}'. Jobs will not be created.");
+            }
+
             Console.WriteLine($"Creating {numJobs} jobs at {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC...");
             
             var timestamp = DateTime.UtcNow.ToString("yyyyMMddHHmmss");
