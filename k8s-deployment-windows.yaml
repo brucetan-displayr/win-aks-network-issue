@@ -5,11 +5,11 @@ metadata:
   namespace: default
 data:
   # Update these values according to your environment
-  IMAGE_NAME: "brucetandisplayr/sql-job-runner:v2-windows"
+  IMAGE_NAME: "brucetandisplayr/sql-job-runner:v5-windows"
   NAMESPACE: "default"
   SECRET_NAME: "sql-connection-secret"
   ORCHESTRATOR_NUM_JOBS: "50"
-  ORCHESTRATOR_BATCH_WAIT_SECONDS: "600"
+  ORCHESTRATOR_BATCH_WAIT_SECONDS: "60"
   RUNNER_DURATION_MINS: "1"
   RUNNER_SQL_WAIT_SECONDS: "10"
 ---
@@ -79,7 +79,7 @@ spec:
       containers:
       - name: orchestrator
         # Use the same image as specified in ConfigMap
-        image: "brucetandisplayr/sql-job-runner:v2-windows"
+        image: "brucetandisplayr/sql-job-runner:v5-windows"
         env:
         - name: MODE
           value: "orchestrator"

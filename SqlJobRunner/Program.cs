@@ -217,12 +217,35 @@ async Task RunRunnerMode()
 
     Console.WriteLine($"Starting SQL query execution for {runnerMinutes} minute(s) (until {endTime:yyyy-MM-dd HH:mm:ss} UTC)...");
 
+    int maxRetries = 5;
+    int retryDelaySeconds = 2;
+    int attempt = 0;
+    SqlConnection? connection = null;
+    while (true)
+    {
+        try
+        {
+            connection = new SqlConnection(connectionString);
+            await connection.OpenAsync();
+            break;
+        }
+        catch (Exception ex)
+        {
+            attempt++;
+            Console.WriteLine($"ERROR opening SQL connection (attempt {attempt}): {ex.Message}");
+            if (attempt >= maxRetries)
+            {
+                Console.WriteLine("EROR Max retries reached. Exiting.");
+                Environment.Exit(1);
+            }
+            await Task.Delay(TimeSpan.FromSeconds(retryDelaySeconds));
+        }
+    }
+
     while (DateTime.UtcNow < endTime)
     {
         try
         {
-            using var connection = new SqlConnection(connectionString);
-            await connection.OpenAsync();
             
             using var command = new SqlCommand("SELECT GETDATE();", connection);
             var result = await command.ExecuteScalarAsync();
