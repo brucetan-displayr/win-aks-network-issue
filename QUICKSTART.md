@@ -25,13 +25,10 @@ This guide will help you quickly get the SQL Job Runner up and running.
 1. **Build and push Docker image**:
    ```powershell
    # Build
-   .\build.ps1 -Registry "your-registry.azurecr.io"
-   
-   # Login to your registry
-   az acr login --name yourregistry
+   .\build.ps1 -Registry "brucetandisplayr"
    
    # Push
-   docker push your-registry.azurecr.io/sql-job-runner:latest
+   docker push brucetandisplayr/sql-job-runner:latest
    ```
 
 2. **Update k8s-deployment.yaml**:

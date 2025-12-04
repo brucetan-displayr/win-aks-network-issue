@@ -45,16 +45,24 @@ async Task RunOrchestratorMode()
     var namespaceParam = Environment.GetEnvironmentVariable("NAMESPACE") ?? "default";
     var secretName = Environment.GetEnvironmentVariable("SECRET_NAME") ?? "sql-connection-secret";
 
+    // Get number of jobs from env var, default to 50
+    var jobsEnv = Environment.GetEnvironmentVariable("NUM_JOBS");
+    int numJobs = 50;
+    if (!string.IsNullOrEmpty(jobsEnv) && int.TryParse(jobsEnv, out var parsedJobs) && parsedJobs > 0)
+    {
+        numJobs = parsedJobs;
+    }
+
     while (true)
     {
         try
         {
-            Console.WriteLine($"Creating 50 jobs at {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC...");
+            Console.WriteLine($"Creating {numJobs} jobs at {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC...");
             
             var timestamp = DateTime.UtcNow.ToString("yyyyMMddHHmmss");
             var tasks = new List<Task>();
 
-            for (int i = 0; i < 50; i++)
+            for (int i = 0; i < numJobs; i++)
             {
                 var jobNumber = i + 1;
                 var jobName = $"sql-runner-{timestamp}-{jobNumber}";
@@ -124,7 +132,7 @@ async Task RunOrchestratorMode()
             }
 
             await Task.WhenAll(tasks);
-            Console.WriteLine($"Successfully created 50 jobs in batch {timestamp}");
+            Console.WriteLine($"Successfully created {numJobs} jobs in batch {timestamp}");
         }
         catch (Exception ex)
         {
@@ -161,11 +169,19 @@ async Task RunRunnerMode()
         Environment.Exit(1);
     }
 
+    // Get runner duration from env var, default to 1 minute
+    var durationEnv = Environment.GetEnvironmentVariable("RUNNER_MINUTES");
+    int runnerMinutes = 1;
+    if (!string.IsNullOrEmpty(durationEnv) && int.TryParse(durationEnv, out var parsedMinutes) && parsedMinutes > 0)
+    {
+        runnerMinutes = parsedMinutes;
+    }
+
     var startTime = DateTime.UtcNow;
-    var endTime = startTime.AddMinutes(1);
+    var endTime = startTime.AddMinutes(runnerMinutes);
     var queryCount = 0;
 
-    Console.WriteLine($"Starting SQL query execution for 1 minute (until {endTime:yyyy-MM-dd HH:mm:ss} UTC)...");
+    Console.WriteLine($"Starting SQL query execution for {runnerMinutes} minute(s) (until {endTime:yyyy-MM-dd HH:mm:ss} UTC)...");
 
     while (DateTime.UtcNow < endTime)
     {
@@ -174,7 +190,7 @@ async Task RunRunnerMode()
             using var connection = new SqlConnection(connectionString);
             await connection.OpenAsync();
             
-            using var command = new SqlCommand("SELECT COUNT(1) FROM [SalesLT].[Customer]", connection);
+            using var command = new SqlCommand("SELECT GETDATE();", connection);
             var result = await command.ExecuteScalarAsync();
             
             queryCount++;
@@ -189,5 +205,5 @@ async Task RunRunnerMode()
         await Task.Delay(TimeSpan.FromSeconds(1));
     }
 
-    Console.WriteLine($"Runner completed. Executed {queryCount} queries in 1 minute.");
+    Console.WriteLine($"Runner completed. Executed {queryCount} queries in {runnerMinutes} minute(s).");
 }
