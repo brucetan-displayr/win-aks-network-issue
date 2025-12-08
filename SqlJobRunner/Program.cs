@@ -249,7 +249,7 @@ async Task RunRunnerMode()
     });
 
     // Start the API server in background
-    var apiTask = app.RunAsync();
+    _ = app.StartAsync();
     Console.WriteLine("API server started on http://localhost:5000");
 
     // Wait a bit for API to start
@@ -288,6 +288,6 @@ async Task RunRunnerMode()
 
     Console.WriteLine($"Runner completed. Executed {queryCount} queries in {runnerMinutes} minute(s).");
     
-    // Stop the API server
+    // Stop the API server gracefully
     await app.StopAsync();
 }
