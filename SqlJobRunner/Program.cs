@@ -244,12 +244,12 @@ async Task RunRunnerMode()
         catch (Exception ex)
         {
             Console.WriteLine($"ERROR in API executing query: {ex.Message}");
-            return Results.Problem(ex.Message, statusCode: 500);
+            return Results.Problem("Internal server error", statusCode: 500);
         }
     });
 
     // Start the API server in background
-    _ = app.StartAsync();
+    await app.StartAsync();
     Console.WriteLine("API server started on http://localhost:5000");
 
     // Wait a bit for API to start
