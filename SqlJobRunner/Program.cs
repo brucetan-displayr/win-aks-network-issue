@@ -1,6 +1,10 @@
 ﻿using k8s;
 using k8s.Models;
 using Microsoft.Data.SqlClient;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.DependencyInjection;
 
 var mode = Environment.GetEnvironmentVariable("MODE")?.ToLower() ?? "runner";
 
@@ -187,7 +191,7 @@ async Task CreateJobAsync(Kubernetes client, string namespaceParam, V1Job job, s
 
 async Task RunRunnerMode()
 {
-    Console.WriteLine("Runner mode: Executing SQL queries...");
+    Console.WriteLine("Runner mode: Starting API server and executing SQL queries via API...");
     
     var connectionString = Environment.GetEnvironmentVariable("CONN_STR");
     if (string.IsNullOrEmpty(connectionString))
@@ -195,6 +199,16 @@ async Task RunRunnerMode()
         Console.WriteLine("ERROR: CONN_STR environment variable is required.");
         Environment.Exit(1);
     }
+
+    // Configure connection pooling in connection string
+    var builder = new SqlConnectionStringBuilder(connectionString)
+    {
+        Pooling = true,
+        MinPoolSize = 5,
+        MaxPoolSize = 100,
+        ConnectTimeout = 30
+    };
+    var pooledConnectionString = builder.ConnectionString;
 
     // Get runner duration from env var, default to 1 minute
     var durationEnv = Environment.GetEnvironmentVariable("RUNNER_DURATION_MINS");
@@ -205,62 +219,75 @@ async Task RunRunnerMode()
     }
 
     var runnerSqlWaitEnv = Environment.GetEnvironmentVariable("RUNNER_SQL_WAIT_SECONDS");
-    int sqlWaitSeconds = 1;
+    int sqlWaitSeconds = 10;
     if (!string.IsNullOrEmpty(runnerSqlWaitEnv) && int.TryParse(runnerSqlWaitEnv, out var parsedSqlWaitSeconds) && parsedSqlWaitSeconds > 0)
     {
         sqlWaitSeconds = parsedSqlWaitSeconds;
     }
 
+    // Build minimal API
+    var builder2 = WebApplication.CreateBuilder();
+    builder2.WebHost.UseUrls("http://localhost:5000");
+    var app = builder2.Build();
+
+    // API endpoint to execute SQL query
+    app.MapGet("/query", async () =>
+    {
+        try
+        {
+            using var connection = new SqlConnection(pooledConnectionString);
+            await connection.OpenAsync();
+            using var command = new SqlCommand("SELECT GETDATE();", connection);
+            var result = await command.ExecuteScalarAsync();
+            return Results.Ok(new { timestamp = result?.ToString(), status = "success" });
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"ERROR in API executing query: {ex.Message}");
+            return Results.Problem("Internal server error", statusCode: 500);
+        }
+    });
+
+    // Start the API server in background
+    await app.StartAsync();
+    Console.WriteLine("API server started on http://localhost:5000");
+
+    // Wait a bit for API to start
+    await Task.Delay(2000);
+
+    // Now make HTTP calls to the API
     var startTime = DateTime.UtcNow;
     var endTime = startTime.AddMinutes(runnerMinutes);
     var queryCount = 0;
 
-    Console.WriteLine($"Starting SQL query execution for {runnerMinutes} minute(s) (until {endTime:yyyy-MM-dd HH:mm:ss} UTC)...");
+    Console.WriteLine($"Starting API query execution for {runnerMinutes} minute(s) (until {endTime:yyyy-MM-dd HH:mm:ss} UTC)...");
 
-    int maxRetries = 5;
-    int retryDelaySeconds = 2;
-    int attempt = 0;
-    SqlConnection? connection = null;
-    while (true)
-    {
-        try
-        {
-            connection = new SqlConnection(connectionString);
-            await connection.OpenAsync();
-            break;
-        }
-        catch (Exception ex)
-        {
-            attempt++;
-            Console.WriteLine($"ERROR opening SQL connection (attempt {attempt}): {ex.Message}");
-            if (attempt >= maxRetries)
-            {
-                Console.WriteLine("EROR Max retries reached. Exiting.");
-                Environment.Exit(1);
-            }
-            await Task.Delay(TimeSpan.FromSeconds(retryDelaySeconds));
-        }
-    }
+    using var httpClient = new HttpClient();
+    httpClient.BaseAddress = new Uri("http://localhost:5000");
+    httpClient.Timeout = TimeSpan.FromSeconds(30);
 
     while (DateTime.UtcNow < endTime)
     {
         try
         {
-            
-            using var command = new SqlCommand("SELECT GETDATE();", connection);
-            var result = await command.ExecuteScalarAsync();
+            var response = await httpClient.GetAsync("/query");
+            response.EnsureSuccessStatusCode();
+            var content = await response.Content.ReadAsStringAsync();
             
             queryCount++;
-            Console.WriteLine($"Query {queryCount}: {result}");
+            Console.WriteLine($"Query {queryCount}: {content}");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"ERROR executing query: {ex.Message}");
+            Console.WriteLine($"ERROR calling API: {ex.Message}");
         }
 
-        // Wait 1 second before next query
+        // Wait before next query
         await Task.Delay(TimeSpan.FromSeconds(sqlWaitSeconds));
     }
 
     Console.WriteLine($"Runner completed. Executed {queryCount} queries in {runnerMinutes} minute(s).");
+    
+    // Stop the API server gracefully
+    await app.StopAsync();
 }
