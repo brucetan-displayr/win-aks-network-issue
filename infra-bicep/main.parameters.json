@@ -1,0 +1,27 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "environment": {
+            "value": "dev"
+        },
+        "regionAbbreviation": {
+            "value": "eus"
+        },
+        "spokeId": {
+            "value": "000"
+        },
+        "platformEngineersGroupId": {
+            "value": "0e14119d-714e-4306-bfee-3f04025429d2"
+        },
+        "tenantId": {
+            "value": "97fb2e3d-d978-44e1-bb74-0aa0109189b5"
+        },
+        "sshPublicKey": {
+            "value": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJyhR84QVak7MBjLSucMUafjB69DrPvOHSvf8v+PeR1h bruce.tan@displayr.com"
+        },
+        "kubernetesVersion": {
+            "value": "1.33.3"
+        }
+    }
+}
