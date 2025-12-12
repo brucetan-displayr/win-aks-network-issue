@@ -1,0 +1,3 @@
+name: aks-infra
+runtime: nodejs
+description: Azure Kubernetes Service infrastructure deployment
